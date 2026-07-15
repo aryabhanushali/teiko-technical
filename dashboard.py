@@ -64,7 +64,9 @@ def ensure_database():
 
 @st.cache_data
 def load_data():
-    connection = sqlite3.connect(DATABASE_PATH)
+    # open read-only: the db is committed, and some hosts mount the repo
+    # read-only so a normal (read-write) connect could fail.
+    connection = sqlite3.connect(f"file:{DATABASE_PATH}?mode=ro", uri=True)
     try:
         frequencies = get_relative_frequencies(connection)
         metadata = get_frequencies_with_metadata(connection)

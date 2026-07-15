@@ -6,6 +6,8 @@ relative cell-population frequencies, compares treatment responders vs
 non-responders, and explores a baseline subset of the data. Results are shown in
 an interactive Streamlit dashboard.
 
+**Live dashboard:** https://teiko-technical-ejvtbkq4vp3zxoudnnle93.streamlit.app
+
 ## Quick start
 
 ```bash
@@ -48,7 +50,8 @@ missing, so it runs on a fresh host with no extra setup. To deploy on
    main file `dashboard.py`.
 3. Streamlit installs `requirements.txt` and serves the app at a public URL.
 
-_(Deployment link: to be added once the repo is pushed and the app is created.)_
+This repo is deployed at
+https://teiko-technical-ejvtbkq4vp3zxoudnnle93.streamlit.app
 
 ## Database schema
 
