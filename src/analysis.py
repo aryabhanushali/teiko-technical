@@ -58,22 +58,37 @@ def compare_responders(frequencies):
 
 def plot_responder_boxplot(frequencies, output_path):
     # One grouped boxplot so the responder/non-responder comparison is
-    # easy to read for all five populations at once.
+    # easy to read for all five populations at once. Teal = responders,
+    # red = non-responders, to match the dashboard.
     cohort = get_miraclib_melanoma_pbmc(frequencies)
 
-    plt.figure(figsize=(10, 6))
+    teal, red, muted, grid, baseline = "#1baf7a", "#e34948", "#898781", "#e1e0d9", "#c3c2b7"
+    fig, ax = plt.subplots(figsize=(10, 6))
     sns.boxplot(
         data=cohort,
         x="population",
         y="percentage",
         hue="response",
+        hue_order=["yes", "no"],
         order=POPULATIONS,
+        palette={"yes": teal, "no": red},
+        gap=0.2,
+        linewidth=1.1,
+        fliersize=2.5,
+        ax=ax,
     )
-    plt.title("Cell population frequencies: responders vs non-responders\n"
-              "(melanoma, miraclib, PBMC)")
-    plt.xlabel("Cell population")
-    plt.ylabel("Relative frequency (%)")
-    plt.legend(title="Response")
+    for side in ["top", "right"]:
+        ax.spines[side].set_visible(False)
+    for side in ["left", "bottom"]:
+        ax.spines[side].set_color(baseline)
+    ax.tick_params(colors=muted, labelcolor="#0b0b0b")
+    ax.grid(axis="y", color=grid, linewidth=0.8)
+    ax.set_axisbelow(True)
+    ax.set_title("Cell population frequencies: responders vs non-responders\n"
+                 "(melanoma, miraclib, PBMC)")
+    ax.set_xlabel("")
+    ax.set_ylabel("Relative frequency (%)")
+    ax.legend(title="Response", frameon=False)
     plt.tight_layout()
     plt.savefig(output_path, dpi=150)
     plt.close()

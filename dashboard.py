@@ -25,9 +25,70 @@ ROOT_DIR = Path(__file__).resolve().parent
 DATABASE_PATH = ROOT_DIR / "cell_counts.db"
 CSV_PATH = ROOT_DIR / "cell-count.csv"
 
+# lab palette
+TEAL = "#1baf7a"      # responders / accent
+RED = "#e34948"       # non-responders
+SURFACE = "#fcfcfb"
+INK = "#0b0b0b"
+MUTED = "#898781"
+GRID = "#e1e0d9"
+BASELINE = "#c3c2b7"
+
+# clinical / lab styling on top of the base theme in .streamlit/config.toml
+LAB_CSS = """
+<style>
+.block-container { padding-top: 2.2rem; max-width: 1150px; }
+
+/* header */
+.lab-title { font-size: 2rem; font-weight: 700; color: #0b0b0b; margin: 0; }
+.lab-sub { color: #52514e; font-size: 0.95rem; margin-top: 0.15rem; }
+.lab-rule { height: 3px; background: #1baf7a; width: 64px; border-radius: 2px;
+            margin: 0.6rem 0 0.2rem 0; }
+
+/* small monospace "lab report" eyebrow above each section */
+.eyebrow { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+           font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase;
+           color: #1baf7a; font-weight: 600; }
+
+/* metric cards get a hairline border so they read like readout panels */
+[data-testid="stMetric"] {
+    background: #fcfcfb;
+    border: 1px solid rgba(11,11,11,0.10);
+    border-left: 3px solid #1baf7a;
+    border-radius: 6px;
+    padding: 0.8rem 1rem;
+}
+[data-testid="stMetricValue"] {
+    font-variant-numeric: tabular-nums;
+}
+
+/* sample ids / tables in monospace for the instrument feel */
+[data-testid="stDataFrame"] { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* tabs */
+.stTabs [data-baseweb="tab"] { font-weight: 600; }
+</style>
+"""
+
+
+def eyebrow(text):
+    st.markdown(f'<div class="eyebrow">{text}</div>', unsafe_allow_html=True)
+
+
+def style_axes(ax):
+    # recessive grid + axes, matching the marks spec
+    ax.set_facecolor(SURFACE)
+    ax.figure.set_facecolor(SURFACE)
+    for side in ["top", "right"]:
+        ax.spines[side].set_visible(False)
+    for side in ["left", "bottom"]:
+        ax.spines[side].set_color(BASELINE)
+    ax.tick_params(colors=MUTED, labelcolor=INK)
+    ax.grid(axis="y", color=GRID, linewidth=0.8)
+    ax.set_axisbelow(True)
+
 
 def database_has_data():
-    # True only if the db exists and actually has counts loaded.
     if not DATABASE_PATH.exists():
         return False
     try:
@@ -40,25 +101,20 @@ def database_has_data():
 
 
 def ensure_database():
-    # Build the db from the csv if we don't already have a populated one, so
-    # the app works on a fresh deploy where the .db isn't checked in.
-    # We build into a temp file and swap it in only once it's fully loaded,
-    # otherwise an interrupted build leaves an empty db behind and every
-    # later run reads 0 rows (this is what made the hosted app come up empty).
+    # Build the db from the csv if we don't already have a populated one.
+    # Build into a temp file and swap it in only once it's fully loaded, so an
+    # interrupted build never leaves an empty db behind.
     if database_has_data():
         return
-
     building = DATABASE_PATH.with_name("cell_counts.building.db")
     if building.exists():
         building.unlink()
-
     dataframe = pd.read_csv(CSV_PATH)
     connection = initialize_database(building)
     try:
         load_dataframe(connection, dataframe)
     finally:
         connection.close()
-
     os.replace(building, DATABASE_PATH)
 
 
@@ -75,8 +131,8 @@ def load_data():
     return frequencies, metadata
 
 
-st.set_page_config(page_title="Loblaw Bio Cell Counts", layout="wide")
-st.title("Loblaw Bio - Immune Cell Population Dashboard")
+st.set_page_config(page_title="Loblaw Bio Cell Counts", page_icon="🧬", layout="wide")
+st.markdown(LAB_CSS, unsafe_allow_html=True)
 
 if not DATABASE_PATH.exists() and not CSV_PATH.exists():
     st.error("Neither the database nor cell-count.csv was found.")
@@ -85,13 +141,21 @@ if not DATABASE_PATH.exists() and not CSV_PATH.exists():
 ensure_database()
 frequencies, metadata = load_data()
 
+# header
+st.markdown('<div class="lab-title">Loblaw Bio / Immune Cell Populations</div>',
+            unsafe_allow_html=True)
+st.markdown('<div class="lab-sub">Immunophenotyping readout for the miraclib clinical trial</div>',
+            unsafe_allow_html=True)
+st.markdown('<div class="lab-rule"></div>', unsafe_allow_html=True)
+
 tab_overview, tab_response, tab_subset = st.tabs(
     ["Overview (Part 2)", "Responder analysis (Part 3)", "Baseline subset (Part 4)"]
 )
 
 # Part 2 - relative frequency overview
 with tab_overview:
-    st.header("Relative frequency of each cell population")
+    eyebrow("Part 02 / Cell population frequencies")
+    st.subheader("Relative frequency of each cell population")
     st.write(
         "For every sample we sum the five populations and express each "
         "population as a percentage of that total."
@@ -108,7 +172,8 @@ with tab_overview:
 
 # Part 3 - responders vs non-responders
 with tab_response:
-    st.header("Responders vs non-responders")
+    eyebrow("Part 03 / Response signature")
+    st.subheader("Responders vs non-responders")
     st.write(
         "Cohort: **melanoma** patients on **miraclib**, **PBMC** samples only. "
         "Each population is compared with a Mann-Whitney U test."
@@ -125,16 +190,23 @@ with tab_response:
             x="population",
             y="percentage",
             hue="response",
+            hue_order=["yes", "no"],
             order=POPULATIONS,
+            palette={"yes": TEAL, "no": RED},
+            gap=0.2,
+            linewidth=1.1,
+            fliersize=2.5,
             ax=ax,
         )
-        ax.set_xlabel("Cell population")
-        ax.set_ylabel("Relative frequency (%)")
-        ax.legend(title="Response")
+        style_axes(ax)
+        ax.set_xlabel("")
+        ax.set_ylabel("Relative frequency (%)", color=INK)
+        legend = ax.legend(title="Response", frameon=False)
+        legend.get_title().set_color(INK)
         st.pyplot(fig)
 
     with col_stats:
-        st.subheader("Statistics")
+        st.markdown("**Statistics**")
         st.dataframe(stats_table, width="stretch", hide_index=True)
 
     significant = stats_table[stats_table["significant"]]["population"].tolist()
@@ -145,7 +217,8 @@ with tab_response:
 
 # Part 4 - baseline subset
 with tab_subset:
-    st.header("Baseline melanoma / miraclib / PBMC samples (time = 0)")
+    eyebrow("Part 04 / Baseline cohort")
+    st.subheader("Baseline melanoma / miraclib / PBMC samples (time = 0)")
 
     baseline = get_baseline_cohort(metadata)
     summary = summarize_baseline(baseline)
@@ -154,13 +227,13 @@ with tab_subset:
 
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.subheader("Samples per project")
+        st.markdown("**Samples per project**")
         st.dataframe(summary["samples_per_project"].rename("samples"), width="stretch")
     with col2:
-        st.subheader("Subjects by response")
+        st.markdown("**Subjects by response**")
         st.dataframe(summary["subjects_by_response"].rename("subjects"), width="stretch")
     with col3:
-        st.subheader("Subjects by sex")
+        st.markdown("**Subjects by sex**")
         st.dataframe(summary["subjects_by_sex"].rename("subjects"), width="stretch")
 
     st.divider()

@@ -1,0 +1,8 @@
+# Clinical/lab look: clean off-white surface with a biotech teal accent.
+[theme]
+base = "light"
+primaryColor = "#1baf7a"
+backgroundColor = "#fcfcfb"
+secondaryBackgroundColor = "#f1f4f2"
+textColor = "#0b0b0b"
+font = "sans serif"
