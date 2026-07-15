@@ -1,8 +1,6 @@
 from pathlib import Path
 import sqlite3
-
 import pandas as pd
-
 
 CELL_POPULATIONS = [
     "b_cell",
@@ -12,7 +10,6 @@ CELL_POPULATIONS = [
     "monocyte",
 ]
 
-
 SCHEMA_SQL = """
 PRAGMA foreign_keys = ON;
 
@@ -20,7 +17,6 @@ CREATE TABLE projects (
     project_id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_name TEXT NOT NULL UNIQUE
 );
-
 CREATE TABLE subjects (
     subject_id TEXT PRIMARY KEY,
     project_id INTEGER NOT NULL,
@@ -43,7 +39,6 @@ CREATE TABLE samples (
     FOREIGN KEY (subject_id)
         REFERENCES subjects(subject_id)
 );
-
 CREATE TABLE cell_populations (
     population_id INTEGER PRIMARY KEY AUTOINCREMENT,
     population_name TEXT NOT NULL UNIQUE
@@ -62,7 +57,6 @@ CREATE TABLE cell_counts (
 
 CREATE INDEX idx_subjects_project
 ON subjects(project_id);
-
 CREATE INDEX idx_subjects_condition
 ON subjects(condition);
 
@@ -82,13 +76,10 @@ CREATE INDEX idx_samples_time
 ON samples(time_from_treatment_start);
 """
 
-
 def connect_database(database_path: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(database_path)
     connection.execute("PRAGMA foreign_keys = ON;")
     return connection
-
-
 def validate_dataframe(dataframe: pd.DataFrame) -> None:
     required_columns = {
         "project",
@@ -103,25 +94,18 @@ def validate_dataframe(dataframe: pd.DataFrame) -> None:
         "time_from_treatment_start",
         *CELL_POPULATIONS,
     }
-
     missing_columns = required_columns.difference(dataframe.columns)
-
     if missing_columns:
         raise ValueError(
             f"Missing required columns: {sorted(missing_columns)}"
         )
-
     if dataframe["sample"].isna().any():
         raise ValueError("Sample IDs cannot be missing.")
-
     if dataframe["subject"].isna().any():
         raise ValueError("Subject IDs cannot be missing.")
-
     if dataframe["sample"].duplicated().any():
         raise ValueError("Sample IDs must be unique.")
-
     observed_sexes = set(dataframe["sex"].dropna().unique())
-
     if not observed_sexes.issubset({"M", "F"}):
         raise ValueError(
             f"Unexpected sex values: {sorted(observed_sexes)}"
@@ -130,19 +114,16 @@ def validate_dataframe(dataframe: pd.DataFrame) -> None:
     observed_responses = set(
         dataframe["response"].dropna().unique()
     )
-
     if not observed_responses.issubset({"yes", "no"}):
         raise ValueError(
             "Unexpected response values: "
             f"{sorted(observed_responses)}"
         )
-
     for population in CELL_POPULATIONS:
         dataframe[population] = pd.to_numeric(
             dataframe[population],
             errors="raise",
         )
-
         if dataframe[population].isna().any():
             raise ValueError(
                 f"Missing counts found in {population}."
@@ -152,8 +133,6 @@ def validate_dataframe(dataframe: pd.DataFrame) -> None:
             raise ValueError(
                 f"Negative counts found in {population}."
             )
-
-
 def validate_subject_consistency(
     dataframe: pd.DataFrame,
 ) -> None:
@@ -202,8 +181,6 @@ def load_projects(
         """,
         [(project,) for project in projects],
     )
-
-
 def get_project_ids(
     connection: sqlite3.Connection,
 ) -> dict[str, int]:
@@ -218,14 +195,11 @@ def get_project_ids(
         project_name: project_id
         for project_name, project_id in rows
     }
-
-
 def load_subjects(
     connection: sqlite3.Connection,
     dataframe: pd.DataFrame,
 ) -> None:
     project_ids = get_project_ids(connection)
-
     subjects = dataframe[
         [
             "subject",
@@ -256,7 +230,6 @@ def load_subjects(
                 response,
             )
         )
-
     connection.executemany(
         """
         INSERT INTO subjects (
@@ -271,8 +244,6 @@ def load_subjects(
         """,
         rows,
     )
-
-
 def load_samples(
     connection: sqlite3.Connection,
     dataframe: pd.DataFrame,
@@ -287,7 +258,6 @@ def load_samples(
         )
         for row in dataframe.itertuples(index=False)
     ]
-
     connection.executemany(
         """
         INSERT INTO samples (
@@ -302,7 +272,6 @@ def load_samples(
         rows,
     )
 
-
 def load_populations(
     connection: sqlite3.Connection,
 ) -> None:
@@ -314,7 +283,6 @@ def load_populations(
         [(population,) for population in CELL_POPULATIONS],
     )
 
-
 def get_population_ids(
     connection: sqlite3.Connection,
 ) -> dict[str, int]:
@@ -324,12 +292,10 @@ def get_population_ids(
         FROM cell_populations
         """
     ).fetchall()
-
     return {
         population_name: population_id
         for population_name, population_id in rows
     }
-
 
 def load_cell_counts(
     connection: sqlite3.Connection,
@@ -359,8 +325,6 @@ def load_cell_counts(
         """,
         rows,
     )
-
-
 def load_dataframe(
     connection: sqlite3.Connection,
     dataframe: pd.DataFrame,
@@ -369,7 +333,6 @@ def load_dataframe(
 
     validate_dataframe(dataframe)
     validate_subject_consistency(dataframe)
-
     with connection:
         load_projects(connection, dataframe)
         load_subjects(connection, dataframe)
