@@ -2,6 +2,7 @@
 # Run with: streamlit run dashboard.py  (or make dashboard)
 
 from pathlib import Path
+import os
 import sqlite3
 
 import matplotlib.pyplot as plt
@@ -25,17 +26,40 @@ DATABASE_PATH = ROOT_DIR / "cell_counts.db"
 CSV_PATH = ROOT_DIR / "cell-count.csv"
 
 
+def database_has_data():
+    # True only if the db exists and actually has counts loaded.
+    if not DATABASE_PATH.exists():
+        return False
+    try:
+        connection = sqlite3.connect(DATABASE_PATH)
+        n = connection.execute("SELECT COUNT(*) FROM cell_counts").fetchone()[0]
+        connection.close()
+        return n > 0
+    except sqlite3.Error:
+        return False
+
+
 def ensure_database():
-    # If the db isn't there yet, build it from the csv. This means the app
-    # still works on a fresh deploy where the .db isn't checked in.
-    if DATABASE_PATH.exists():
+    # Build the db from the csv if we don't already have a populated one, so
+    # the app works on a fresh deploy where the .db isn't checked in.
+    # We build into a temp file and swap it in only once it's fully loaded,
+    # otherwise an interrupted build leaves an empty db behind and every
+    # later run reads 0 rows (this is what made the hosted app come up empty).
+    if database_has_data():
         return
+
+    building = DATABASE_PATH.with_name("cell_counts.building.db")
+    if building.exists():
+        building.unlink()
+
     dataframe = pd.read_csv(CSV_PATH)
-    connection = initialize_database(DATABASE_PATH)
+    connection = initialize_database(building)
     try:
         load_dataframe(connection, dataframe)
     finally:
         connection.close()
+
+    os.replace(building, DATABASE_PATH)
 
 
 @st.cache_data
