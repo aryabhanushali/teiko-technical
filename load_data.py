@@ -1,24 +1,23 @@
+# Part 1: create the SQLite database and load cell-count.csv into it.
+# Run with: python load_data.py
+
 from pathlib import Path
 
 import pandas as pd
 
 from src.database import initialize_database, load_dataframe
 
-
 ROOT_DIR = Path(__file__).resolve().parent
 CSV_PATH = ROOT_DIR / "cell-count.csv"
 DATABASE_PATH = ROOT_DIR / "cell_counts.db"
 
 
-def main() -> None:
+def main():
     if not CSV_PATH.exists():
-        raise FileNotFoundError(
-            f"Could not find {CSV_PATH.name} in the project root."
-        )
+        raise FileNotFoundError(f"Could not find {CSV_PATH.name} in the project root.")
 
     dataframe = pd.read_csv(CSV_PATH)
     connection = initialize_database(DATABASE_PATH)
-
     try:
         load_dataframe(connection, dataframe)
     finally:
