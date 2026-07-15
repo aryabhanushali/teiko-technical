@@ -9,8 +9,7 @@ of the data. The results are shown in an interactive Streamlit dashboard.
 
 ## How to run
 
-The whole thing is driven by the Makefile (this is what the grader uses in
-Codespaces):
+The whole thing is driven by the Makefile:
 
 ```bash
 make setup       # install dependencies from requirements.txt
@@ -62,7 +61,7 @@ disagreeing between rows), I split it into five tables:
 | `cell_populations` | lookup of the five population names |
 | `cell_counts` | the counts, one row per (sample, population) |
 
-**Why this design.** It mirrors the real hierarchy of the data: a project has
+**Why this design.** It mirrors the real relationships of the data: a project has
 many subjects, a subject has many samples over time, and each sample has a count
 for each population. Subject-level facts (sex, condition, response) are stored
 once, so they can't contradict each other. Storing the counts "long" (one row per
